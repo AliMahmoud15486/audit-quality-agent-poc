@@ -1,0 +1,26 @@
+{
+  "name": "cortea-aqa-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Audit Quality Agent — IFRS disclosure completeness slice. A PM work-sample for Cortea.ai.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "eval": "tsx eval/run-eval.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.68.0",
+    "next": "^15.1.6",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.0"
+  }
+}
