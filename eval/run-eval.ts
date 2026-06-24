@@ -12,6 +12,8 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config(); // also pick up plain .env if present
 
+import { writeFileSync } from "fs";
+import { join } from "path";
 import Anthropic from "@anthropic-ai/sdk";
 import { runCheck } from "../lib/checkEngine";
 import { getStatement, SAMPLE_STATEMENTS } from "../lib/sampleStatements";
@@ -32,11 +34,17 @@ async function main() {
   // Run each statement once; index findings by requirement id.
   const predByKey = new Map<string, { status: string; grounded: boolean; confidence: string }>();
   let ungroundedCount = 0;
+  let modelUsed = "";
+  const statementSummaries: { id: string; company: string; gap: number; review: number; ok: number }[] = [];
 
   for (const s of SAMPLE_STATEMENTS) {
     const stmt = getStatement(s.id)!;
     process.stderr.write(`Reviewing ${stmt.company} …\n`);
-    const { findings } = await runCheck(stmt.text, client);
+    const { findings, model } = await runCheck(stmt.text, client);
+    modelUsed = model;
+    let gap = 0,
+      review = 0,
+      ok = 0;
     for (const f of findings) {
       predByKey.set(`${s.id}:${f.requirementId}`, {
         status: f.status,
@@ -44,7 +52,11 @@ async function main() {
         confidence: f.confidence,
       });
       if (f.citedPassage && !f.grounded) ungroundedCount++;
+      if (f.status === "gap") gap++;
+      else if (f.status === "needs_review") review++;
+      else ok++;
     }
+    statementSummaries.push({ id: s.id, company: stmt.company, gap, review, ok });
   }
 
   let tp = 0,
@@ -53,6 +65,15 @@ async function main() {
     fn = 0,
     missing = 0;
   const trapResults: string[] = [];
+  const trapRows: {
+    trap: string;
+    statementId: string;
+    requirementId: string;
+    predicted: string;
+    truth: string;
+    correct: boolean;
+    why: string;
+  }[] = [];
 
   for (const label of LABELS) {
     const pred = predByKey.get(`${label.statementId}:${label.requirementId}`);
@@ -74,12 +95,37 @@ async function main() {
         `  [${label.trap}] ${label.statementId}/${label.requirementId}: ` +
           `predicted ${pred.status} (truth ${label.truth}) → ${correct ? "✓ handled" : "✗ MISSED"}\n      ${label.why}`
       );
+      trapRows.push({
+        trap: label.trap,
+        statementId: label.statementId,
+        requirementId: label.requirementId,
+        predicted: pred.status,
+        truth: label.truth,
+        correct,
+        why: label.why,
+      });
     }
   }
 
   const precision = tp + fp === 0 ? 1 : tp / (tp + fp);
   const recall = tp + fn === 0 ? 1 : tp / (tp + fn);
   const f1 = precision + recall === 0 ? 0 : (2 * precision * recall) / (precision + recall);
+
+  // Persist a snapshot the /eval web page renders (committed to the repo).
+  const snapshot = {
+    generatedAt: new Date().toISOString(),
+    model: modelUsed,
+    totals: { tp, fp, tn, fn, scored: tp + fp + tn + fn, missing, ungrounded: ungroundedCount },
+    metrics: {
+      precision: Math.round(precision * 1000) / 10,
+      recall: Math.round(recall * 1000) / 10,
+      f1: Math.round(f1 * 1000) / 10,
+    },
+    statements: statementSummaries,
+    traps: trapRows,
+  };
+  writeFileSync(join(process.cwd(), "eval", "results.json"), JSON.stringify(snapshot, null, 2) + "\n");
+  process.stderr.write("Wrote eval/results.json (rendered at /eval). Commit & push to update the live page.\n");
 
   console.log("\n================ Audit Quality Agent — eval ================\n");
   console.log(`Cases scored: ${tp + fp + tn + fn}  (missing predictions: ${missing})`);

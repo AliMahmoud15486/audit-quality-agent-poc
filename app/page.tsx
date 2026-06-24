@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { SAMPLE_STATEMENTS } from "@/lib/sampleStatements";
 import { EnforcedFinding } from "@/lib/schema";
 import { generateReportHtml } from "@/lib/report";
@@ -91,7 +92,8 @@ export default function Home() {
       <div className="meta">
         The agent tests the statement against a named subset of IFRS disclosure requirements. Every conclusion
         links to the exact clause and the verbatim passage it was tested against. A code-side grounding check
-        verifies each quote actually exists in the source — the auditor decides.
+        verifies each quote actually exists in the source — the auditor decides. See the{" "}
+        <Link href="/eval">evaluation →</Link> for precision/recall and the planted traps.
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -159,9 +161,9 @@ export default function Home() {
           <div className="note">
             Model: {result.model}. The agent flags and cites; it never signs. This is a deliberately narrow
             slice ({result.findings.length} requirements) — the design point is the trust mechanics
-            (grounding, traceability, completeness-not-presence), not breadth of IFRS coverage. See{" "}
-            <code>eval/</code> for the precision/recall harness with planted false-positive and
-            false-negative traps.
+            (grounding, traceability, completeness-not-presence), not breadth of IFRS coverage. See the{" "}
+            <Link href="/eval">evaluation</Link> for the precision/recall harness with planted false-positive
+            and false-negative traps.
           </div>
         </>
       )}
