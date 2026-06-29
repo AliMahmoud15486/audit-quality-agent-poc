@@ -48,6 +48,12 @@ A demo that flags some gaps proves nothing. The hard question is *how often it's
 
 **Reading it like a PM would:** recall is perfect and the two false positives mean the agent currently *errs toward over-flagging* — the safe direction for an audit tool (no missed gaps), and exactly the precision/recall knob I'd tune next via a `needs_review` triage tier rather than silent automation. A single accuracy number would have hidden that; the trap rows are where you actually look.
 
+### Observability — every run is a traced eval
+
+Live `/api/check` requests and eval runs are traced in **Braintrust** ([`eval/braintrust-eval.ts`](eval/braintrust-eval.ts)), so each verdict is inspectable: the exact input statement, the model's structured output, token cost, and latency. A real trace of an `audit-check` run on the Helios Components GmbH sample — grounded, citation-verified findings with confidence scores:
+
+![Braintrust trace of an audit-check run](docs/braintrust-trace.png)
+
 ## How it maps to the role
 
 | The JD asks for… | …shown here |
