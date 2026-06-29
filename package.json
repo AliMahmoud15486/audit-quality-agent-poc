@@ -7,10 +7,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "eval": "tsx eval/run-eval.ts"
+    "eval": "tsx eval/run-eval.ts",
+    "eval:braintrust": "braintrust eval eval/braintrust-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.68.0",
+    "braintrust": "^3.20.0",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

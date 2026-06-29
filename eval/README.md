@@ -33,6 +33,21 @@ Output: a confusion matrix, precision / recall / F1 on problem-detection, the co
 of ungrounded quotes the code-side check caught, and an explicit pass/fail line for
 each planted trap.
 
+### Tracked over time (Braintrust)
+
+```bash
+# .env.local also needs BRAINTRUST_API_KEY
+npm run eval:braintrust
+```
+
+Same ground truth and problem-detection logic, but logged to Braintrust so each of
+the 18 requirement checks is an inspectable row, runs are diffed against each other,
+and token / cost / latency are captured (`wrapAnthropic` instruments the SDK; the
+production `/app` path is left on the bare client). Precision and Recall are real
+*set* metrics, not row averages — irrelevant rows score `null` and drop out of each
+mean (Recall counts only true problems; Precision only flagged rows). `TrapHandled`
+is its own scorer so a trap regression is impossible to miss in the diff view.
+
 ## How to read it
 
 - **Recall** is the safety number — optimise it first for an audit tool, then claw
@@ -41,6 +56,12 @@ each planted trap.
   small set can look fine while still missing the one case that matters.
 - **Grounding** is reported separately: it's a different guarantee (is the cited
   evidence real?) from correctness (is the verdict right?). Both have to hold.
+- **Aggregate scores move run-to-run** (`thinking: adaptive`, no seed): across two
+  Braintrust runs, Correct went 88.9% → 94.4% and Precision 75% → 85.7% on the same
+  inputs — one borderline requirement flipping. This is *why* the traps are tracked
+  by name: `Recall` and `TrapHandled` held at 100% both times, so the conclusion
+  ("never missed a planted gap") is stable even when the headline percentage isn't.
+  Pin behaviour with a seed before quoting a single precision number as a target.
 
 ## Extending the set
 
