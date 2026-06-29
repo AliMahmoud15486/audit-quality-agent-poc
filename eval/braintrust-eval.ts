@@ -33,15 +33,18 @@ const client = wrapAnthropic(new Anthropic());
 
 type Pred = { status: string; grounded: boolean; confidence: string; citedPassage: string };
 
-// Memoise the model call per statement so the 18 requirement rows trigger only
-// one runCheck() per statement (2 calls total), not one call per row.
+// Memoise the model call per (statement, trial). Each statement's 9 requirement
+// rows share one runCheck() within a trial, but every trial makes its own
+// independent call — so trialCount: 3 measures real run-to-run variance rather
+// than replaying one cached result. Cost: statements × trials LLM calls.
 const checkCache = new Map<string, Promise<Map<string, Pred>>>();
 
-function findingsForStatement(statementId: string): Promise<Map<string, Pred>> {
-  if (!checkCache.has(statementId)) {
+function findingsForStatement(statementId: string, trialIndex: number): Promise<Map<string, Pred>> {
+  const key = `${statementId}:${trialIndex}`;
+  if (!checkCache.has(key)) {
     const stmt = getStatement(statementId)!;
     checkCache.set(
-      statementId,
+      key,
       runCheck(stmt.text, client).then(({ findings }) => {
         const byReq = new Map<string, Pred>();
         for (const f of findings) {
@@ -56,7 +59,7 @@ function findingsForStatement(statementId: string): Promise<Map<string, Pred>> {
       })
     );
   }
-  return checkCache.get(statementId)!;
+  return checkCache.get(key)!;
 }
 
 Eval("cortea-aqa-poc", {
@@ -72,9 +75,12 @@ Eval("cortea-aqa-poc", {
       },
     })),
 
+  // Each data row runs trialCount times; trialIndex keeps the trials independent.
+  trialCount: 3,
+
   // Run the agent and return its predicted status for this requirement.
-  task: async (input: { statementId: string; requirementId: string }) => {
-    const byReq = await findingsForStatement(input.statementId);
+  task: async (input: { statementId: string; requirementId: string }, hooks) => {
+    const byReq = await findingsForStatement(input.statementId, hooks.trialIndex);
     return byReq.get(input.requirementId)?.status ?? "missing";
   },
 
